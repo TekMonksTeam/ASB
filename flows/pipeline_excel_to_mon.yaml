@@ -1,0 +1,37 @@
+flow:
+  name: Excel to Mon API
+  disabled: false
+  expandRouteProperties: true
+	
+listener:
+  type: rest_listener
+  isMessageGenerator: true
+  host: 127.0.0.1
+  port: 8484
+  secured: false
+  url: "/exceltomon"
+  method: "POST"
+  allow_origin: "*"
+  timeout: 240000
+
+route0:
+  type: js
+  dependencies: listener
+  isAsync: true
+  module: "{{{ESB_DIR}}}/custom/save_excel.js"
+  dir_to_save: "{{{ESB_DIR}}}/in_excels"
+
+route1:
+  type: js
+  dependencies:
+  - listener
+  - route0
+  isAsync: true
+  module: "{{{ESB_DIR}}}/custom/excel_to_json.js"
+
+output:
+  type: rest_responder
+  dependencies:
+  - listener
+  - route0
+  - route1
