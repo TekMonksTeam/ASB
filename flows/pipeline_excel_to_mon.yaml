@@ -29,9 +29,22 @@ route1:
   isAsync: true
   module: "{{{ESB_DIR}}}/custom/excel_to_json.js"
 
+route2:
+  type: js
+  dependencies:
+  - listener
+  - route0
+  - route1
+  isAsync: true
+  module: "{{{ESB_DIR}}}/custom/save_mons.js"
+  db_path: "{{{ESB_DIR}}}/../monboss/db/monboss.db"
+  template_path: "{{{ESB_DIR}}}/../monboss/conf/mon.template.json"
+
 output:
   type: rest_responder
   dependencies:
   - listener
   - route0
   - route1
+  - route2
+  
