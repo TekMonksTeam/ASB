@@ -34,3 +34,5 @@ flows/pipeline_charges.json
 # Testing stuff
 testing/*
 !testing/**/.dummy
+
+in_excels/
