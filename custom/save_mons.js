@@ -8,6 +8,7 @@ const mustache = require('mustache');
 const mkdirAsync = _promisify(fs.mkdir);
 const accessAsync = _promisify(fs.access);
 
+const crypt = require(`${ASBCONSTANTS.LIBDIR}/crypt.js`);
 const { getFileNameWithoutExtn } = require(`${ASBCONSTANTS.ROOTDIR}/custom/save_excel.js`);
 
 let db, dbRunAsync;
@@ -56,7 +57,8 @@ function _getMonsJson(node_info, mon_infos, template) {
     const mons = {}; for (const mon_info of mon_infos) {
         let mon_template = template[mon_info.type][mon_info.name];
         const state_dir_path = `${node_info.user!=="root"?"/home":""}/${node_info.user}/monboss_stats`;
-        const data = {...node_info, ...mon_info, state_dir_path};
+        const decrypted_password = crypt.decrypt(node_info.password);
+        const data = {...node_info, ...mon_info, state_dir_path, decrypted_password};
         const mon = _replaceTemplate(mon_template, data);
         const mon_key = `ssh_mon_${mon_info.type}_${mon_info.name}_${mon_info.mon_id}`;
         mons[mon_key] = mon;
@@ -95,10 +97,11 @@ async function _storeAndgetMonInfos(db, node_id, row) {
     let files = row["Critical Files"];
     let folders = row["Critical Folders"];
     if(cpu_usage || ram_usage || disk_usage) {
-        const mon_type = "INFRA";
-        if(cpu_usage) monInfos.push(await _addInfraMonToDB(db, node_id, mon_type, "CPU", {cpu_usage}));
-        if(ram_usage) monInfos.push(await _addInfraMonToDB(db, node_id, mon_type, "RAM", {ram_usage}));
-        if(disk_usage) monInfos.push(await _addInfraMonToDB(db, node_id, mon_type, "DISK", {disk_usage}));
+        const mon_type = "INFRA"; const serviceNames = services? services.split(";").map(serviceWithPort => 
+            serviceWithPort.split(":")[0]).join(" "): undefined;
+        if(cpu_usage) monInfos.push(await _addInfraMonToDB(db, node_id, mon_type, "CPU", {cpu_usage}, serviceNames));
+        if(ram_usage) monInfos.push(await _addInfraMonToDB(db, node_id, mon_type, "RAM", {ram_usage}, serviceNames));
+        if(disk_usage) monInfos.push(await _addInfraMonToDB(db, node_id, mon_type, "DISK", {disk_usage}, serviceNames));
     }
     if (files) {
         files = files.split(";"); for (let fileInfo of files) {
@@ -137,12 +140,14 @@ async function _storeAndgetMonInfos(db, node_id, row) {
     } return monInfos;
 }
 
-async function _addInfraMonToDB(db, node_id, type, name, threshould_info, service_name) {
+async function _addInfraMonToDB(db, node_id, type, name, threshould_info, service_name_or_names) {
     let mon = { mon_id: _getUUID(), type, status: "healthy", name};
-    if(service_name) mon.service_name = service_name;
+    const is_infra_mon = type === "INFRA";
+    if(!is_infra_mon) mon.service_name = service_name_or_names;
     await _storeMonToDB(db, node_id, mon);
     await _storeThresholdToDB(db, node_id, mon.mon_id, threshould_info);
-    mon={...mon, ...threshould_info, duration:2};
+    mon = {...mon, ...threshould_info, duration:2};
+    if(is_infra_mon) mon.services = service_name_or_names;
     return mon;
 }
 
@@ -204,7 +209,7 @@ async function _storeNodeToDB(db, nodeInfo) {
 
 function _getNodeInfo(row) {
     return { node_id: _getUUID(), ip: row["VM IP"], user: row["SSH User"], port: row["SSH Port"], name: row["Node Name"], 
-        status: 'compilant', os_type: row["OS"], password: row["SSH Password"], pyshell_port: row["Pyshell Port"] }
+        status: 'compilant', os_type: row["OS"], password: crypt.encrypt(row["SSH Password"]), pyshell_port: row["Pyshell Port"] }
 }
 
 function _getUUID() { return crypto.randomUUID();}

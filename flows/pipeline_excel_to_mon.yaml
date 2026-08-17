@@ -6,7 +6,7 @@ flow:
 listener:
   type: rest_listener
   isMessageGenerator: true
-  host: 127.0.0.1
+  host: 148.251.35.143
   port: 8484
   secured: false
   url: "/exceltomon"
@@ -37,9 +37,9 @@ route2:
   - route1
   isAsync: true
   module: "{{{ESB_DIR}}}/custom/save_mons.js"
-  db_path: "{{{ESB_DIR}}}/../monboss/db/monboss.db"
-  db_creation_sqls_path: "{{{ESB_DIR}}}/../monboss/db/monboss_db_schema.json"
-  template_path: "{{{ESB_DIR}}}/../monboss/conf/mon.template.json"
+  db_path: "{{{ESB_DIR}}}/../../monbosssetup/monboss/db/monboss.db"
+  db_creation_sqls_path: "{{{ESB_DIR}}}/../../monbosssetup/monboss/db/monboss_db_schema.json"
+  template_path: "{{{ESB_DIR}}}/../../monbosssetup/monboss/conf/mon.template.json"
 
 output:
   type: rest_responder
