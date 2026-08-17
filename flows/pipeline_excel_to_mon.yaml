@@ -38,6 +38,7 @@ route2:
   isAsync: true
   module: "{{{ESB_DIR}}}/custom/save_mons.js"
   db_path: "{{{ESB_DIR}}}/../monboss/db/monboss.db"
+  db_creation_sqls_path: "{{{ESB_DIR}}}/../monboss/db/monboss_db_schema.json"
   template_path: "{{{ESB_DIR}}}/../monboss/conf/mon.template.json"
 
 output:

@@ -5,6 +5,8 @@ const fspromises = fs.promises;
 const crypto = require("crypto");
 const sqlite3 = require("sqlite3");
 const mustache = require('mustache');
+const mkdirAsync = _promisify(fs.mkdir);
+const accessAsync = _promisify(fs.access);
 
 const { getFileNameWithoutExtn } = require(`${ASBCONSTANTS.ROOTDIR}/custom/save_excel.js`);
 
@@ -14,9 +16,11 @@ exports.start = async (_routeName, _route, _messageContainer, message) => {
     if (message.content?.result) {
         const jsonPath = message.content.json_path;
         const dbPath = path.resolve(_route.db_path);
+        const dbCreationSQLsPath = path.resolve(_route.db_creation_sqls_path);
+        const dbCreationSQLs = require(dbCreationSQLsPath);
         const templatePath = path.resolve(_route.template_path);
         const template = require(templatePath);
-        const saveMonsResult = await _save_mons_to_db(jsonPath, dbPath, template);
+        const saveMonsResult = await _save_mons_to_db(jsonPath, dbPath, dbCreationSQLs, template);
         message.content = {...saveMonsResult};
     }
 
@@ -24,12 +28,13 @@ exports.start = async (_routeName, _route, _messageContainer, message) => {
     message.setGCEligible(true);
 }
 
-async function _save_mons_to_db(json_path, db_path, template) {
+async function _save_mons_to_db(json_path, db_path, db_creation_sqls, template) {
     const rows = require(json_path);
     const dir_to_save = path.dirname(json_path);
     const json_name = getFileNameWithoutExtn(json_path);
     const destination_mons = `${path.join(dir_to_save, json_name)}_mon.json`;
-    if(!await _openDB(db_path)) return {result: false, message: "Failed to extract & store the mons due to internal issue."}
+    if(!await _initDB(db_path, db_creation_sqls)) return {
+        result: false, message: "Failed to extract & store the mons due to internal issue." }
     try {
         let mons = {}; for (const row of rows) {
             const nodeInfo = _getNodeInfo(row);
@@ -157,9 +162,29 @@ async function _storeThresholdToDB(db, node_id, mon_id, thresholdInfo) {
     return await dbRunAsync(query, Object.values(data));
 }
 
+async function _initDB(DB_PATH, DB_CREATION_SQLS) {
+    if (!await _createDB(DB_PATH, DB_CREATION_SQLS)) return false;
+    if (!await _openDB(DB_PATH)) return false; else return true;
+}
+
+async function _createDB(DB_PATH, DB_CREATION_SQLS) {
+    try { await accessAsync(DB_PATH, fs.constants.F_OK | fs.constants.W_OK); return true; }
+    catch (err) {  // db doesn't exist
+        ASBLOG.info("DB doesn't exist, creating and initializing", true);
+        try{await mkdirAsync(path.basename(DB_PATH))} catch(err){
+            if (err.code != "EEXIST") {ASBLOG.error(`Error creating DB dir, ${err}`, true); return false;}
+        } if (!await _openDB(DB_PATH)) return false; // creates the DB file
+        
+        for (const dbCreationSQL of DB_CREATION_SQLS) try{await dbRunAsync(dbCreationSQL, [])} catch(err) {
+            ASBLOG.info(`DB creation DDL failed on: ${dbCreationSQL}, due to ${err}`, true); 
+            return false;
+        } ASBLOG.info("DB created successfully.", true); return true;    
+    }
+}
+
 function _openDB(DB_PATH) {
     return new Promise(resolve => {
-        if (!db) db = new sqlite3.Database(DB_PATH, sqlite3.OPEN_READWRITE, err => {
+        if (!db) db = new sqlite3.Database(DB_PATH, sqlite3.OPEN_READWRITE|sqlite3.OPEN_CREATE, err => {
             if (err) {ASBLOG.error(`Error opening DB, ${err}`, true); resolve(false);} 
             else { dbRunAsync = _promisify(db.run.bind(db)); resolve(true); }
         }); else resolve(true);
