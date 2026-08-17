@@ -84,7 +84,7 @@ async function _storeAndgetMonInfos(db, node_id, row) {
     const folder_rate = row["Folder Growth Threshold"];
     const service_cpu_usage = row["App CPU Threshold"];
     const service_ram_usage = row["App RAM Threshold"];
-    const folder_rate_duration = row["Folder Growth tTime in Hr(s)"];
+    const folder_rate_duration = row["Folder Growth Time in Hr(s)"];
     const folder_retention_days = row["Folder Retention (Days)"];
     let services = row["Services"];
     let files = row["Critical Files"];
