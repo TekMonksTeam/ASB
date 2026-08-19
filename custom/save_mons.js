@@ -176,7 +176,7 @@ async function _createDB(DB_PATH, DB_CREATION_SQLS) {
     try { await accessAsync(DB_PATH, fs.constants.F_OK | fs.constants.W_OK); return true; }
     catch (err) {  // db doesn't exist
         ASBLOG.info("DB doesn't exist, creating and initializing", true);
-        try{await mkdirAsync(path.basename(DB_PATH))} catch(err){
+        try{await mkdirAsync(path.dirname(DB_PATH))} catch(err){
             if (err.code != "EEXIST") {ASBLOG.error(`Error creating DB dir, ${err}`, true); return false;}
         } if (!await _openDB(DB_PATH)) return false; // creates the DB file
         
