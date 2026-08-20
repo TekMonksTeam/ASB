@@ -122,7 +122,7 @@ async function _storeAndgetMonInfos(db, node_id, row) {
                 name: "FOLDER GROWTH", folder, folder_retention_days, folder_rate_duration
             }; await _storeMonToDB(db, node_id, mon);
             await _storeThresholdToDB(db, node_id, mon.mon_id, thresholdInfo);
-            mon={...mon, ...thresholdInfo, duration:2}; monInfos.push(mon);
+            mon={...mon, ...thresholdInfo, duration:1}; monInfos.push(mon);
         }
     }
     if(services) {
@@ -154,7 +154,7 @@ async function _addInfraMonToDB(db, node_id, type, name, threshould_info, servic
     if(!is_infra_mon) mon.service_name = service_name_or_names;
     await _storeMonToDB(db, node_id, mon);
     await _storeThresholdToDB(db, node_id, mon.mon_id, threshould_info);
-    mon = {...mon, ...threshould_info, duration:2};
+    mon = {...mon, ...threshould_info, duration:1};
     if(is_infra_mon) mon.services = service_name_or_names;
     return mon;
 }
