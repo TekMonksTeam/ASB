@@ -20,8 +20,9 @@ exports.start = async (_routeName, _route, _messageContainer, message) => {
         const dbCreationSQLsPath = path.resolve(_route.db_creation_sqls_path);
         const dbCreationSQLs = require(dbCreationSQLsPath);
         const templatePath = path.resolve(_route.template_path);
+        const realMonsDir = path.dirname(templatePath);
         const template = require(templatePath);
-        const saveMonsResult = await _save_mons_to_db(jsonPath, dbPath, dbCreationSQLs, template);
+        const saveMonsResult = await _save_mons_to_db(jsonPath, dbPath, dbCreationSQLs, template, realMonsDir);
         message.content = {...saveMonsResult};
     }
 
@@ -29,7 +30,7 @@ exports.start = async (_routeName, _route, _messageContainer, message) => {
     message.setGCEligible(true);
 }
 
-async function _save_mons_to_db(json_path, db_path, db_creation_sqls, template) {
+async function _save_mons_to_db(json_path, db_path, db_creation_sqls, template, real_mons_dir) {
     const rows = require(json_path);
     const dir_to_save = path.dirname(json_path);
     const json_name = getFileNameWithoutExtn(json_path);
@@ -44,7 +45,8 @@ async function _save_mons_to_db(json_path, db_path, db_creation_sqls, template) 
             const monJsons = _getMonsJson(nodeInfo, monInfos, template);
             mons = {...mons, ...monJsons};
         } await fspromises.writeFile(destination_mons, JSON.stringify(mons, null, 4));
-        const success_message = `All mons are loaded to the db from Excel successfully!!`;
+        await fspromises.writeFile(`${real_mons_dir}/mon.json`, JSON.stringify(mons, null, 4));
+        const success_message = `All mons are loaded to the db from Excel successfully!!\nmon.json is also update!!`;
         return {result: true, message: success_message, mons_path: destination_mons};
     } catch (error) {
         const error_message = `Failed to extract & store the mons from Excel.`;
@@ -60,7 +62,7 @@ function _getMonsJson(node_info, mon_infos, template) {
         const decrypted_password = crypt.decrypt(node_info.password);
         const data = {...node_info, ...mon_info, state_dir_path, decrypted_password};
         const mon = _replaceTemplate(mon_template, data);
-        const mon_key = `ssh_mon_${mon_info.type}_${mon_info.name}_${mon_info.mon_id}`;
+        const mon_key = `${mon.monboss_mon_type||"ssh"}_mon_${mon_info.type}_${mon_info.name}_${mon_info.mon_id}`;
         mons[mon_key] = mon;
     } return mons;
 }
@@ -135,6 +137,12 @@ async function _storeAndgetMonInfos(db, node_id, row) {
                     "SERVICE CPU", {service_cpu_usage}, service_name));
                 if(service_ram_usage) monInfos.push(await _addInfraMonToDB(db, node_id, mon_type, 
                     "SERVICE RAM", {service_ram_usage}, service_name));
+            }
+            if(service_port) {
+                let mon = { mon_id: _getUUID(), type: "NETWORK", status: "healthy", 
+                    name: "PORT", service_name, service_port
+                }; await _storeMonToDB(db, node_id, mon);
+                monInfos.push(mon);
             }
         }
     } return monInfos;
